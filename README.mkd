@@ -1,0 +1,32 @@
+
+About
+-----
+
+microjson - A valid JSON parser, small enough to be embedded into scripts,
+enabling them to talk to an API which returns JSON data, like Github's.
+
+The requirement was to add JSON parsing to single-file scripts which have
+no external dependencies other than Python's standard library.
+
+I prefer the ease of working with JSON over XML; YAML is nice too, I just
+wasn't interested in writing a YAML parser.
+
+
+Usage
+-----
+
+I typically write scripts with this pattern:
+
+    def main():
+        do_something()
+
+    if __name__ == "__main__":
+        main()
+
+If and when I need to update microjson, I'll do:
+
+    % cat script.orig microjson.py >script
+
+And then move the "if \_\_name\_\_" line to the end of the script.
+
+
