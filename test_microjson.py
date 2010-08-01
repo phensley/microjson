@@ -8,7 +8,13 @@ import microjson
 
 
 T_DICTS = [
-    ('{"abcdef": "ghijkl"}', {'abcdef': 'ghijkl'})
+    ('{}', {}),
+    ('{"a":1}', {"a":1}),
+    ('{"abcdef": "ghijkl"}', {'abcdef': 'ghijkl'}),
+
+    # whitespace tests
+    ('\t{\n\r\t }\r\n', {}),
+    (' \t{ "a"\n:\t"b"\n\t}  ', {"a":"b"})
     ]
 
 T_STRS = [
@@ -17,8 +23,14 @@ T_STRS = [
     ]
 
 T_LISTS = [
+    ('[]', []),
     ('[1,2,3]', [1,2,3]),
-    ('[[1,2],["a","b"]]', [[1,2],["a","b"]])
+    ('[[1,2],["a","b"]]', [[1,2],["a","b"]]),
+
+    # whitespace tests
+    ('\t\n[\r\n \t]\n', []),
+    ('  [\n\t1,\t2 ] \t', [1,2])
+
     ]
 
 T_INTS = [
@@ -41,9 +53,9 @@ T_FLOATS = [
     ('-3.14159', -3.14159),
     ('1E1', 1E1),
     ('-1E2', -1E2),
-    ('1.8446744073709552e19', 1.8446744073709552e19),
-    ('Infinity', float('infinity')),
-    ('-Infinity', float('-infinity'))
+    ('-1E-2', -1E-2),
+    ('12E-2', 12E-2),
+    ('1.8446744073709552e19', 1.8446744073709552e19)
     ]
 
 T_FIXED = [('true', True), ('false', False), ('null', None)]
@@ -54,11 +66,10 @@ T_MALFORMED = [
     '"ewg"',
     'wegouhweg',
     '["abcdef]',
-    '["a","b"', 
-    '[Inf]',
-    '{"a:"b"}',
-    '{"a":13',
-    '{123: 456}'
+    '["a","b"',     
+    '{"a:"b"}',     # key missing trailing '"'
+    '{"a":13',      # dict missing trailing '}'
+    '{123: 456}'    # object keys must be quoted
     ]
 
 def wrap(cases):

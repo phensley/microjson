@@ -14,8 +14,8 @@ import string
 # character classes
 WS = set([' ','\t','\r','\n','\b','\f'])
 NUMS = set([str(i) for i in range(0, 10)])
-NUMSTART = set(['.','-','+','I'] + list(NUMS))
-NUMCHARS = set(list(NUMSTART) + ['e','E'])
+NUMSTART = NUMS.union(['.','-','+'])
+NUMCHARS = NUMSTART.union(['e','E'])
 
 # error messages
 E_MALF = 'malformed JSON data'
@@ -25,7 +25,6 @@ E_NULL = 'expected null'
 E_LITEM = 'expected list item'
 E_DKEY = 'expected key'
 E_COLON = 'missing colon after key'
-E_INF = 'expected Infinity'
 E_EMPTY = 'found empty string, not valid JSON data'
 E_WRAP = 'can only parse JSON wrapped in an object {} or array []'
 
@@ -88,7 +87,7 @@ def parse_fixed(stm, expected, value, errmsg):
 
 
 def parse_num(stm):
-    is_float = is_negative = 0
+    is_float = is_neg = saw_exp = 0
     pos = stm.pos
     while True:
         c = stm.peek()
@@ -99,15 +98,12 @@ def parse_num(stm):
         if c not in NUMCHARS:
             break
 
-        if c == '-':
-            is_negative = 1
-        elif c == 'I':
-            value = float('inf')
-            if is_negative:
-                value *= -1
-            return parse_fixed(stm, "Infinity", value, E_INF)
+        if c == '-' and not saw_exp:
+            is_neg = 1
         elif c in ('.','e','E'):
             is_float = 1
+            if c in ('e','E'):
+                saw_exp = 1
         stm.next() 
 
     s = stm.substr(pos, stm.pos)
@@ -181,6 +177,7 @@ def parse_dict(stm):
 
 
 def parse_json(data):
+    data = data.strip()
     stm = stream(data)
     if not data:
         raise jsonerr(E_EMPTY, stm, stm.pos)
