@@ -31,7 +31,12 @@ T_STRS = [
     ('"\xc4\x91"', u"\u0111"),
 
     # mixed utf-8 and escaped unicode
-    ('"\xc6\x91\u0191\u2018"', u"\u0191\u0191\u2018"),
+    ('"a\xc6\x91b\u0191c\u2018"', u"a\u0191b\u0191c\u2018"),
+    ]
+
+# test range of 16-bit characters > 0x7F
+T_UNICODE = [('"' + c.encode('utf-8') + '"', c) for c in 
+        (unichr(i) for i in range(0x80, 0x10000))
     ]
 
 T_LISTS = [
@@ -85,6 +90,7 @@ T_MALFORMED = [
     '{123: 456}'    # object keys must be quoted
     ]
 
+
 def wrap(cases):
     "wrap bare values in a list to produce valid json data"
     return [('[%s]' % js, [py]) for js, py in cases]
@@ -105,6 +111,9 @@ class TestMicrojson(unittest.TestCase):
 
     def test_string(self):
         self.do_test(wrap(T_STRS))
+
+    def test_unicode(self):
+        self.do_test(wrap(T_UNICODE))
 
     def test_integer(self):
         self.do_test(wrap(T_INTS))

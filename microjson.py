@@ -73,7 +73,7 @@ def skipspaces(stm):
 
 def decode_utf8(c0, stm):
     c0 = ord(c0)
-    r = 0
+    r = 0xFFFD      # unicode replacement character
 
     # 110yyyyy 10zzzzzz
     if (c0 & 0xE0) == 0xC0:
