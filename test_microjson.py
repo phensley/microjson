@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 # std
 import unittest
 
@@ -19,7 +20,18 @@ T_DICTS = [
 
 T_STRS = [
     ('"foo bar baz"', 'foo bar baz'),
-    ('"abc\\"def\\"ghi"', 'abc"def"ghi')
+    ('"abc\\"def\\"ghi"', 'abc"def"ghi'),
+
+    # escaped unicode 
+    ('"\u0124\u0113\u013a\u013e\u014d"', u"\u0124\u0113\u013a\u013e\u014d"),
+    ('"\u201chello\u201d"', u"\u201chello\u201d"),
+
+    # bare utf-8 
+    ('"\xc6\x91"', u"\u0191"),
+    ('"\xc4\x91"', u"\u0111"),
+
+    # mixed utf-8 and escaped unicode
+    ('"\xc6\x91\u0191\u2018"', u"\u0191\u0191\u2018"),
     ]
 
 T_LISTS = [
@@ -60,13 +72,14 @@ T_FLOATS = [
 
 T_FIXED = [('true', True), ('false', False), ('null', None)]
 
+# bare values (not wrapped in {} or []) are not yet parseable
 T_MALFORMED = [
-    '',
-    '123',      # bare values not yet parseable
-    '"ewg"',
-    'wegouhweg',
-    '["abcdef]',
-    '["a","b"',     
+    '',             # empty
+    '123',          # bare int 
+    '"ewg"',        # bare string
+    'wegouhweg',    # bare char data
+    '["abcdef]',    # string missing trailing '"'
+    '["a","b"',     # list missing trailing ']'
     '{"a:"b"}',     # key missing trailing '"'
     '{"a":13',      # dict missing trailing '}'
     '{123: 456}'    # object keys must be quoted

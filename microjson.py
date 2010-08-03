@@ -16,8 +16,10 @@ WS = set([' ','\t','\r','\n','\b','\f'])
 NUMS = set([str(i) for i in range(0, 10)])
 NUMSTART = NUMS.union(['.','-','+'])
 NUMCHARS = NUMSTART.union(['e','E'])
+ESC_MAP = {'n':'\n','t':'\t','r':'\r','b':'\b','f':'\f'}
 
 # error messages
+E_BYTES = 'input string must be type str containing ASCII or UTF-8 bytes'
 E_MALF = 'malformed JSON data'
 E_TRUNC = 'truncated JSON data'
 E_BOOL = 'expected boolean'
@@ -27,14 +29,17 @@ E_DKEY = 'expected key'
 E_COLON = 'missing colon after key'
 E_EMPTY = 'found empty string, not valid JSON data'
 E_WRAP = 'can only parse JSON wrapped in an object {} or array []'
+E_BADESC = 'bad escape character found'
+
 
 
 class JsonError(Exception):
     pass
 
 
-def jsonerr(msg, stm, pos):
-    msg += ' at position %d, "%s"' % (pos, stm.substr(pos, 32))
+def jsonerr(msg, stm=None, pos=0):
+    if stm:
+        msg += ' at position %d, "%s"' % (pos, stm.substr(pos, 32))
     return JsonError(msg)
 
 
@@ -45,6 +50,9 @@ class stream(StringIO.StringIO):
 
     def next(self):
         return self.read(1)
+
+    def next_ord(self):
+        return ord(self.read(1))
 
     def peek(self):
         if self.pos == self.len:
@@ -63,18 +71,71 @@ def skipspaces(stm):
         stm.next()
 
 
+def decode_utf8(c0, stm):
+    c0 = ord(c0)
+    r = 0
+
+    # 110yyyyy 10zzzzzz
+    if (c0 & 0xE0) == 0xC0:
+        c1 = stm.next_ord()
+        r = ((c0 & 0x1F) << 6) + \
+            (c1 & 0x3F)
+
+    # 1110xxxx 10yyyyyy 10zzzzzz
+    elif (c0 & 0xF0) == 0xE0:
+        c1 = stm.next_ord()
+        c2 = stm.next_ord()
+        r = ((c0 & 0x0F) << 12) + \
+            ((c1 & 0x3F) << 6) + \
+             (c2 & 0x3F)
+
+    # 11110www 10xxxxxx 10yyyyyy 10zzzzzz
+    elif (c0 & 0xF8) == 0xF0:
+        c1 = stm.next_ord()
+        c2 = stm.next_ord()
+        c3 = stm.next_ord()
+        r = ((c0 & 0x07) << 18) + \
+            ((c1 & 0x3F) << 12) + \
+            ((c2 & 0x3F) << 6) + \
+             (c3 & 0x3F)
+    return unichr(r)
+
+
+def decode_escape(c, stm):
+    # whitespace
+    v = ESC_MAP.get(c, None)
+    if v is not None:
+        return v
+
+    # plain character
+    elif c != 'u':
+        return c
+
+    # decode unicode escape \u1234
+    sv = 12
+    r = 0
+    for i in range(0, 4):
+        r |= int(stm.next(), 16) << sv
+        sv -= 4
+    return unichr(r)
+
+
 def parse_str(stm):
     stm.next()  # skip over '"'
-    pos = stm.pos
+    r = []
     while True:
         c = stm.next()
         if c == '':
-            raise jsonerr(E_TRUNC, stm, pos)
-        if c == '"':
-            raw = stm.substr(pos, stm.pos-1)
-            return codecs.unicode_escape_decode(raw)[0]
-        if c == '\\':
+            raise jsonerr(E_TRUNC, stm, stm.pos - 1)
+        elif c == '\\':
             c = stm.next()
+            r.append(decode_escape(c, stm))
+        elif c == '"':
+            return ''.join(r)
+        elif c > '\x7f':
+            r.append(decode_utf8(c, stm))
+        else:
+            r.append(c)
 
 
 def parse_fixed(stm, expected, value, errmsg):
@@ -177,6 +238,8 @@ def parse_dict(stm):
 
 
 def parse_json(data):
+    if not isinstance(data, str):
+        raise jsonerr(E_BYTES)
     data = data.strip()
     stm = stream(data)
     if not data:
