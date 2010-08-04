@@ -32,7 +32,6 @@ E_WRAP = 'can only parse JSON wrapped in an object {} or array []'
 E_BADESC = 'bad escape character found'
 
 
-
 class JsonError(Exception):
     pass
 
@@ -74,30 +73,20 @@ def skipspaces(stm):
 def decode_utf8(c0, stm):
     c0 = ord(c0)
     r = 0xFFFD      # unicode replacement character
+    nc = stm.next_ord
 
     # 110yyyyy 10zzzzzz
     if (c0 & 0xE0) == 0xC0:
-        c1 = stm.next_ord()
-        r = ((c0 & 0x1F) << 6) + \
-            (c1 & 0x3F)
+        r = ((c0 & 0x1F) << 6) + (nc() & 0x3F)
 
     # 1110xxxx 10yyyyyy 10zzzzzz
     elif (c0 & 0xF0) == 0xE0:
-        c1 = stm.next_ord()
-        c2 = stm.next_ord()
-        r = ((c0 & 0x0F) << 12) + \
-            ((c1 & 0x3F) << 6) + \
-             (c2 & 0x3F)
+        r = ((c0 & 0x0F) << 12) + ((nc() & 0x3F) << 6) + (nc() & 0x3F)
 
     # 11110www 10xxxxxx 10yyyyyy 10zzzzzz
     elif (c0 & 0xF8) == 0xF0:
-        c1 = stm.next_ord()
-        c2 = stm.next_ord()
-        c3 = stm.next_ord()
-        r = ((c0 & 0x07) << 18) + \
-            ((c1 & 0x3F) << 12) + \
-            ((c2 & 0x3F) << 6) + \
-             (c3 & 0x3F)
+        r = ((c0 & 0x07) << 18) + ((nc() & 0x3F) << 12) + \
+            ((nc() & 0x3F) << 6) + (nc() & 0x3F)
     return unichr(r)
 
 
@@ -148,6 +137,9 @@ def parse_fixed(stm, expected, value, errmsg):
 
 
 def parse_num(stm):
+    # Per rfc 4627 section 2.4 '0' and '0.1' are valid, but '01' and
+    # '01.1' are not, presumably since this would be confused with an
+    # octal number.  This rule is not enforced.
     is_float = is_neg = saw_exp = 0
     pos = stm.pos
     while True:
@@ -183,6 +175,7 @@ def parse_list(stm):
         c = stm.peek()
         if c == '':
             raise jsonerr(E_TRUNC, stm, pos)
+
         if c in (',', ']'):
             if expect:
                 raise jsonerr(E_LITEM, stm, pos)

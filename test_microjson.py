@@ -81,6 +81,7 @@ T_FIXED = [('true', True), ('false', False), ('null', None)]
 T_MALFORMED = [
     '',             # empty
     '123',          # bare int 
+    '[0123]',       # number with leading zero
     '"ewg"',        # bare string
     'wegouhweg',    # bare char data
     '["abcdef]',    # string missing trailing '"'
