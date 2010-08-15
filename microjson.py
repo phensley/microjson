@@ -32,26 +32,52 @@ E_WRAP = 'can only parse JSON wrapped in an object {} or array []'
 E_BADESC = 'bad escape character found'
 
 
-class JsonError(Exception):
+class JSONError(Exception):
     pass
 
 
 def jsonerr(msg, stm=None, pos=0):
     if stm:
-        msg += ' at position %d, "%s"' % (pos, stm.substr(pos, 32))
-    return JsonError(msg)
+        msg += ' at position %d, "%s"' % (pos, repr(stm.substr(pos, 32)))
+    return JSONError(msg)
 
 
-class stream(StringIO.StringIO):
+class JSONStream(object):
 
-    def fwd(self, count):
-        self.read(count)
+    # no longer inherit directly from StringIO, since we only want to
+    # expose the methods below and not allow direct access to the 
+    # underlying stream.
 
-    def next(self):
-        return self.read(1)
+    def __init__(self, data):
+        self._stm = StringIO.StringIO(data)
+
+    @property
+    def pos(self):
+        return self._stm.pos
+
+    @property
+    def len(self):
+        return self._stm.len
+
+    def getvalue(self):
+        return self._stm.getvalue()
+
+    def skipspaces(self):
+        "post-cond: read pointer will be over first non-WS char"
+        self._skip(lambda c: c not in WS)
+
+    def _skip(self, stopcond):
+        while True:
+            c = self.peek()
+            if stopcond(c) or c == '':
+                break
+            self.next()
+
+    def next(self, size=1):
+        return self._stm.read(size)
 
     def next_ord(self):
-        return ord(self.read(1))
+        return ord(self.next())
 
     def peek(self):
         if self.pos == self.len:
@@ -59,15 +85,7 @@ class stream(StringIO.StringIO):
         return self.getvalue()[self.pos]
 
     def substr(self, pos, length):
-        return self.getvalue()[pos:length]
-
-
-def skipspaces(stm):
-    while True:
-        c = stm.peek()
-        if c not in WS: 
-            break
-        stm.next()
+        return self.getvalue()[pos:pos+length]
 
 
 def decode_utf8(c0, stm):
@@ -110,7 +128,8 @@ def decode_escape(c, stm):
 
 
 def parse_str(stm):
-    stm.next()  # skip over '"'
+    # skip over '"'
+    stm.next()  
     r = []
     while True:
         c = stm.next()
@@ -130,8 +149,8 @@ def parse_str(stm):
 def parse_fixed(stm, expected, value, errmsg):
     off = len(expected)
     pos = stm.pos
-    if stm.substr(pos, pos + off) == expected:
-        stm.fwd(off)
+    if stm.substr(pos, off) == expected:
+        stm.next(off)
         return value
     raise jsonerr(errmsg, stm, pos)
 
@@ -159,7 +178,7 @@ def parse_num(stm):
                 saw_exp = 1
         stm.next() 
 
-    s = stm.substr(pos, stm.pos)
+    s = stm.substr(pos, stm.pos - pos)
     if is_float:
         return float(s)
     return long(s)
@@ -171,7 +190,7 @@ def parse_list(stm):
     stm.next()  # skip over '['
     pos = stm.pos
     while True:
-        skipspaces(stm)
+        stm.skipspaces()
         c = stm.peek()
         if c == '':
             raise jsonerr(E_TRUNC, stm, pos)
@@ -196,7 +215,7 @@ def parse_dict(stm):
     stm.next()  # skip over '{'
     pos = stm.pos
     while True:
-        skipspaces(stm)
+        stm.skipspaces()
         c = stm.peek()
 
         if c == '':
@@ -215,12 +234,12 @@ def parse_dict(stm):
         # parse out a key/value pair
         elif c == '"':
             key = parse_str(stm)
-            skipspaces(stm)
+            stm.skipspaces()
             c = stm.next()
             if c != ':':
                 raise jsonerr(E_COLON, stm, stm.pos)
 
-            skipspaces(stm)
+            stm.skipspaces()
             val = parse_json_raw(stm)
             result[key] = val
             expect_key = 0
@@ -234,7 +253,7 @@ def parse_json(data):
     if not isinstance(data, str):
         raise jsonerr(E_BYTES)
     data = data.strip()
-    stm = stream(data)
+    stm = JSONStream(data)
     if not data:
         raise jsonerr(E_EMPTY, stm, stm.pos)
     if data[0] not in ('{','['):
@@ -244,7 +263,7 @@ def parse_json(data):
 
 def parse_json_raw(stm):
     while True:
-        skipspaces(stm)
+        stm.skipspaces()
         c = stm.peek()
         if c == '"': 
             return parse_str(stm)

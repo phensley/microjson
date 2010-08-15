@@ -125,9 +125,9 @@ class TestMicrojson(unittest.TestCase):
         self.do_test(wrap(T_FIXED))
 
     def test_malformed(self):
-        "assert a JsonError is raised for these cases"
+        "assert a JSONError is raised for these cases"
         for js in T_MALFORMED:
-            self.assertRaises(microjson.JsonError, microjson.parse_json, js)
+            self.assertRaises(microjson.JSONError, microjson.parse_json, js)
 
 def main():
     unittest.main()
