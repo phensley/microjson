@@ -185,9 +185,9 @@ def parse_num(stm):
 
 
 def parse_list(stm):
+    # skip over '['
+    stm.next()  
     result = []
-    expect = 0
-    stm.next()  # skip over '['
     pos = stm.pos
     while True:
         stm.skipspaces()
@@ -195,24 +195,26 @@ def parse_list(stm):
         if c == '':
             raise jsonerr(E_TRUNC, stm, pos)
 
-        if c in (',', ']'):
-            if expect:
-                raise jsonerr(E_LITEM, stm, pos)
+        elif c == ']':
             stm.next()
-            if c == ']':
-                return result
-            expect = 1
+            return result
 
-        # we must have a list item
-        val = parse_json_raw(stm)
-        result.append(val)
-        expect = 0
+        elif c == ',':
+            stm.next()
+            result.append(parse_json_raw(stm))
+            continue
 
+        elif not result:
+            # first list item
+            result.append(parse_json_raw(stm))
+            continue
+        
 
 def parse_dict(stm):
+    # skip over '{'
+    stm.next()
     result = {}
     expect_key = 0
-    stm.next()  # skip over '{'
     pos = stm.pos
     while True:
         stm.skipspaces()

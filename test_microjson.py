@@ -22,9 +22,18 @@ T_STRS = [
     ('"foo bar baz"', 'foo bar baz'),
     ('"abc\\"def\\"ghi"', 'abc"def"ghi'),
 
+    # escaped whitespace
+    ('"\\n\\tindent\\r\\n"', '\n\tindent\r\n'),
+
+    # escaped ascii, weird but need to test to cover possible cases
+    ('"\\ \\x\\y\\z\\ "', ' xyz '),
+
     # escaped unicode 
     ('"\u0124\u0113\u013a\u013e\u014d"', u"\u0124\u0113\u013a\u013e\u014d"),
     ('"\u201chello\u201d"', u"\u201chello\u201d"),
+
+    # pure utf-8 unicode > 16-bits. not asci-encodable in json.
+    ('"\xf0\x90\x82\x82"', U"\U00010082"),
 
     # bare utf-8 
     ('"\xc6\x91"', u"\u0191"),
@@ -87,7 +96,19 @@ T_MALFORMED = [
     '["a","b"',     # list missing trailing ']'
     '{"a:"b"}',     # key missing trailing '"'
     '{"a":13',      # dict missing trailing '}'
-    '{123: 456}'    # object keys must be quoted
+    '{123: 456}',   # object keys must be quoted
+    '[nulx]',       # null?
+    '[trux]',       # true?
+    "[12, ]",       # incomplete list
+    "[123",         # truncated list
+    "[1, , ,]",     # list with empty slots
+    "[1, , ",       # truncated list with empty slots
+    '{"abc"}',      # incomplete dict
+    '{"abc"',       # truncated dict
+    '{"abc":',      # truncated dict with missing value
+    '{',            # truncated dict
+    '{,}',          # dict with empty slots
+    u'[]',          # input must be a str
     ]
 
 
