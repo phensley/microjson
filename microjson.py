@@ -4,7 +4,6 @@
 # Send ideas, bugs to http://github.com/phensley
 # Copyright (c) 2010 Patrick Hensley <spaceboy@indirect.com>
 
-
 # std
 import codecs
 import StringIO
@@ -13,8 +12,8 @@ import string
 
 # character classes
 WS = set([' ','\t','\r','\n','\b','\f'])
-NUMS = set([str(i) for i in range(0, 10)])
-NUMSTART = NUMS.union(['.','-','+'])
+DIGITS = set([str(i) for i in range(0, 10)])
+NUMSTART = DIGITS.union(['.','-','+'])
 NUMCHARS = NUMSTART.union(['e','E'])
 ESC_MAP = {'n':'\n','t':'\t','r':'\r','b':'\b','f':'\f'}
 
@@ -164,9 +163,6 @@ def parse_num(stm):
     while True:
         c = stm.peek()
 
-        if c == '':
-            raise jsonerr(E_TRUNC, stm, pos)
-
         if c not in NUMCHARS:
             break
 
@@ -176,6 +172,7 @@ def parse_num(stm):
             is_float = 1
             if c in ('e','E'):
                 saw_exp = 1
+
         stm.next() 
 
     s = stm.substr(pos, stm.pos - pos)
