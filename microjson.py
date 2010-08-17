@@ -1,13 +1,14 @@
 
-# microjson - Minimal JSON parser for use in standalone scripts.
-# No warranty. Free to use/modify as you see fit. 
-# Send ideas, bugs to http://github.com/phensley
+# microjson - Minimal JSON parser/emitter for use in standalone scripts.
+# No warranty. Free to use/modify as you see fit. Trades speed for compactness.
+# Send ideas, bugs, simplifications to http://github.com/phensley
 # Copyright (c) 2010 Patrick Hensley <spaceboy@indirect.com>
 
 # std
 import codecs
 import StringIO
 import string
+import types
 
 
 # character classes
@@ -16,6 +17,8 @@ DIGITS = set([str(i) for i in range(0, 10)])
 NUMSTART = DIGITS.union(['.','-','+'])
 NUMCHARS = NUMSTART.union(['e','E'])
 ESC_MAP = {'n':'\n','t':'\t','r':'\r','b':'\b','f':'\f'}
+REV_ESC_MAP = dict([(v,k) for k,v in ESC_MAP.items()] + [('"','"')])
+
 
 # error messages
 E_BYTES = 'input string must be type str containing ASCII or UTF-8 bytes'
@@ -27,15 +30,15 @@ E_LITEM = 'expected list item'
 E_DKEY = 'expected key'
 E_COLON = 'missing colon after key'
 E_EMPTY = 'found empty string, not valid JSON data'
-E_WRAP = 'can only parse JSON wrapped in an object {} or array []'
 E_BADESC = 'bad escape character found'
+E_UNSUPP = 'unsupported type "%s" cannot be JSON-encoded'
 
 
 class JSONError(Exception):
     pass
 
 
-def jsonerr(msg, stm=None, pos=0):
+def _jsonerr(msg, stm=None, pos=0):
     if stm:
         msg += ' at position %d, "%s"' % (pos, repr(stm.substr(pos, 32)))
     return JSONError(msg)
@@ -87,7 +90,7 @@ class JSONStream(object):
         return self.getvalue()[pos:pos+length]
 
 
-def decode_utf8(c0, stm):
+def _decode_utf8(c0, stm):
     c0 = ord(c0)
     r = 0xFFFD      # unicode replacement character
     nc = stm.next_ord
@@ -126,35 +129,35 @@ def decode_escape(c, stm):
     return unichr(r)
 
 
-def parse_str(stm):
+def _from_json_string(stm):
     # skip over '"'
     stm.next()  
     r = []
     while True:
         c = stm.next()
         if c == '':
-            raise jsonerr(E_TRUNC, stm, stm.pos - 1)
+            raise _jsonerr(E_TRUNC, stm, stm.pos - 1)
         elif c == '\\':
             c = stm.next()
             r.append(decode_escape(c, stm))
         elif c == '"':
             return ''.join(r)
         elif c > '\x7f':
-            r.append(decode_utf8(c, stm))
+            r.append(_decode_utf8(c, stm))
         else:
             r.append(c)
 
 
-def parse_fixed(stm, expected, value, errmsg):
+def _from_json_fixed(stm, expected, value, errmsg):
     off = len(expected)
     pos = stm.pos
     if stm.substr(pos, off) == expected:
         stm.next(off)
         return value
-    raise jsonerr(errmsg, stm, pos)
+    raise _jsonerr(errmsg, stm, pos)
 
 
-def parse_num(stm):
+def _from_json_number(stm):
     # Per rfc 4627 section 2.4 '0' and '0.1' are valid, but '01' and
     # '01.1' are not, presumably since this would be confused with an
     # octal number.  This rule is not enforced.
@@ -181,7 +184,7 @@ def parse_num(stm):
     return long(s)
 
 
-def parse_list(stm):
+def _from_json_list(stm):
     # skip over '['
     stm.next()  
     result = []
@@ -190,7 +193,7 @@ def parse_list(stm):
         stm.skipspaces()
         c = stm.peek()
         if c == '':
-            raise jsonerr(E_TRUNC, stm, pos)
+            raise _jsonerr(E_TRUNC, stm, pos)
 
         elif c == ']':
             stm.next()
@@ -198,16 +201,16 @@ def parse_list(stm):
 
         elif c == ',':
             stm.next()
-            result.append(parse_json_raw(stm))
+            result.append(_from_json_raw(stm))
             continue
 
         elif not result:
             # first list item
-            result.append(parse_json_raw(stm))
+            result.append(_from_json_raw(stm))
             continue
         
 
-def parse_dict(stm):
+def _from_json_dict(stm):
     # skip over '{'
     stm.next()
     result = {}
@@ -216,15 +219,14 @@ def parse_dict(stm):
     while True:
         stm.skipspaces()
         c = stm.peek()
-
         if c == '':
-            raise jsonerr(E_TRUNC, stm, pos)
+            raise _jsonerr(E_TRUNC, stm, pos)
 
         # end of dictionary, or next item
         if c in ('}',','):
             stm.next()
             if expect_key:
-                raise jsonerr(E_DKEY, stm, stm.pos)
+                raise _jsonerr(E_DKEY, stm, stm.pos)
             if c == '}':
                 return result
             expect_key = 1
@@ -232,52 +234,130 @@ def parse_dict(stm):
 
         # parse out a key/value pair
         elif c == '"':
-            key = parse_str(stm)
+            key = _from_json_string(stm)
             stm.skipspaces()
             c = stm.next()
             if c != ':':
-                raise jsonerr(E_COLON, stm, stm.pos)
+                raise _jsonerr(E_COLON, stm, stm.pos)
 
             stm.skipspaces()
-            val = parse_json_raw(stm)
+            val = _from_json_raw(stm)
             result[key] = val
             expect_key = 0
             continue
 
         # unexpected character in middle of dict
-        raise jsonerr(E_MALF, stm, stm.pos)
+        raise _jsonerr(E_MALF, stm, stm.pos)
 
 
-def parse_json(data):
-    if not isinstance(data, str):
-        raise jsonerr(E_BYTES)
-    data = data.strip()
-    stm = JSONStream(data)
-    if not data:
-        raise jsonerr(E_EMPTY, stm, stm.pos)
-    if data[0] not in ('{','['):
-        raise jsonerr(E_WRAP, stm, stm.pos)
-    return parse_json_raw(stm)
-
-
-def parse_json_raw(stm):
+def _from_json_raw(stm):
     while True:
         stm.skipspaces()
         c = stm.peek()
         if c == '"': 
-            return parse_str(stm)
+            return _from_json_string(stm)
         elif c == '{': 
-            return parse_dict(stm)
+            return _from_json_dict(stm)
         elif c == '[': 
-            return parse_list(stm)
+            return _from_json_list(stm)
         elif c == 't':
-            return parse_fixed(stm, 'true', True, E_BOOL)
+            return _from_json_fixed(stm, 'true', True, E_BOOL)
         elif c == 'f':
-            return parse_fixed(stm, 'false', False, E_BOOL)
+            return _from_json_fixed(stm, 'false', False, E_BOOL)
         elif c == 'n': 
-            return parse_fixed(stm, 'null', None, E_NULL)
+            return _from_json_fixed(stm, 'null', None, E_NULL)
         elif c in NUMSTART:
-            return parse_num(stm)
+            return _from_json_number(stm)
 
-        raise jsonerr(E_MALF, stm, stm.pos)
+        raise _jsonerr(E_MALF, stm, stm.pos)
+
+
+def from_json(data):
+    """
+    Converts 'data' which is UTF-8 (or the 7-bit pure ASCII subset) into
+    a Python representation.  You must pass bytes to this in a str type,
+    not unicode.
+    """
+    if not isinstance(data, str):
+        raise _jsonerr(E_BYTES)
+    if not data:
+        return None
+    stm = JSONStream(data)
+    return _from_json_raw(stm)
+
+
+# JSON emitter
+
+def _to_json_list(stm, lst):
+    seen = 0
+    stm.write('[')
+    for elem in lst:
+        if seen:
+            stm.write(',')
+        seen = 1
+        _to_json_object(stm, elem)
+    stm.write(']')
+
+
+def _to_json_string(stm, buf):
+    stm.write('"')
+    for c in buf:
+        nc = REV_ESC_MAP.get(c, None)
+        if nc:
+            stm.write('\\' + nc)
+        elif ord(c) <= 0x7F:
+            # force ascii
+            stm.write(str(c))
+        else:
+            stm.write('\\u%4x' % ord(c))
+    stm.write('"')
+
+
+def _to_json_dict(stm, dct):
+    seen = 0
+    stm.write('{')
+    for key in dct.keys():
+        if seen:
+            stm.write(',')
+        seen = 1
+        val = dct[key]
+        if not type(key) in (types.StringType, types.UnicodeType):
+            key = str(key)
+        _to_json_string(stm, key)
+        stm.write(':')
+        _to_json_object(stm, val)
+    stm.write('}')
+
+
+def _to_json_object(stm, obj):
+    typ = type(obj)
+    if typ in (types.ListType, types.TupleType):
+        _to_json_list(stm, obj)
+    elif typ == types.FloatType:
+        stm.write("%s" % obj)
+    elif typ in (types.IntType, types.LongType):
+        stm.write("%d" % obj)
+    elif typ == types.NoneType:
+        stm.write('null')
+    elif typ == types.BooleanType:
+        if obj:
+            stm.write('true')
+        else:
+            stm.write('false')
+    elif typ in (types.StringType, types.UnicodeType):
+        _to_json_string(stm, obj)
+    elif hasattr(obj, 'keys') and hasattr(obj, '__getitem__'):
+        _to_json_dict(stm, obj)
+    else:
+        raise _jsonerr(E_UNSUPP % typ)
+
+
+def to_json(obj):
+    """
+    Converts 'obj' to an ASCII JSON string representation.
+    """
+    stm = StringIO.StringIO('')
+    _to_json_object(stm, obj)
+    return stm.getvalue()
+
 

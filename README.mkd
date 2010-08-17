@@ -2,20 +2,29 @@
 About
 -----
 
-microjson - A valid JSON parser, small enough to be embedded into scripts,
-enabling them to talk to an API which returns JSON data, like Github's.
+microjson - A minimal, valid, pure-Python JSON parser/emitter. 
 
-The requirement was to add JSON parsing to single-file scripts which have
-no external dependencies other than Python's standard library.
+Goal was to create something small enough to be embedded into standalone
+scripts, enabling them to talk to an API which returns JSON data, like
+Github's, without relying on external dependencies other than the Python
+standard library.
 
-I prefer the ease of working with JSON over XML; YAML is nice too, I just
-wasn't interested in writing a YAML parser.
-
+Github offers multiple encodings, but I prefer the ease of working with JSON
+over XML; YAML is nice too, though I wasn't interested in writing a YAML
+parser.
 
 Usage
 -----
 
-I typically write scripts with this pattern:
+    obj = microjson.from_json(json_data)
+
+    json_data = microjson.to_json(obj)
+
+
+Embedding
+---------
+
+I typically write the standalone scripts with this pattern:
 
     def main():
         do_something()
@@ -23,10 +32,17 @@ I typically write scripts with this pattern:
     if __name__ == "__main__":
         main()
 
-If and when I need to update microjson, I'll do:
+If and when I need to update microjson, I'll pull down the latest from
+Github and use a sed command to generate the final script:
 
-    % cat script.orig microjson.py >script
+    % sed -e '/^@MICROJSON@$/ { <return>
+        r microjson.py <return>
+        d; }' myscript.in >myscript
 
-And then move the "if \_\_name\_\_" line to the end of the script.
+If you use cat or some other method of embedding microjson.py, make sure the
+"if \_\_name\_\_ ..." line is at the end of the script.
+
+
+
 
 

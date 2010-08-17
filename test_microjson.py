@@ -8,7 +8,7 @@ import unittest
 import microjson
 
 
-T_DICTS = [
+T_PARSE_DICTS = [
     ('{}', {}),
     ('{"a":1}', {"a":1}),
     ('{"abcdef": "ghijkl"}', {'abcdef': 'ghijkl'}),
@@ -18,7 +18,9 @@ T_DICTS = [
     (' \t{ "a"\n:\t"b"\n\t}  ', {"a":"b"})
     ]
 
-T_STRS = [
+T_PARSE_STRS = [
+    ('', None),
+
     ('"foo bar baz"', 'foo bar baz'),
     ('"abc\\"def\\"ghi"', 'abc"def"ghi'),
 
@@ -44,11 +46,11 @@ T_STRS = [
     ]
 
 # test range of 16-bit characters > 0x7F
-T_UNICODE = [('"' + c.encode('utf-8') + '"', c) for c in 
+T_PARSE_UNICODE = [('"' + c.encode('utf-8') + '"', c) for c in 
         (unichr(i) for i in range(0x80, 0x10000))
     ]
 
-T_LISTS = [
+T_PARSE_LISTS = [
     ('[]', []),
     ('[1,2,3]', [1,2,3]),
     ('[[1,2],["a","b"]]', [[1,2],["a","b"]]),
@@ -59,7 +61,7 @@ T_LISTS = [
 
     ]
 
-T_INTS = [
+T_PARSE_INTS = [
     ('0', 0),
     ('-1', -1),
     ('123', 123), 
@@ -70,7 +72,7 @@ T_INTS = [
     ('18446744073709551616', 18446744073709551616L)
     ]
 
-T_FLOATS = [
+T_PARSE_FLOATS = [
     ('.1', 0.1),
     ('-.1', -0.1),
     ('1.0', 1.0),
@@ -84,14 +86,10 @@ T_FLOATS = [
     ('1.8446744073709552e19', 1.8446744073709552e19)
     ]
 
-T_FIXED = [('true', True), ('false', False), ('null', None)]
+T_PARSE_FIXED = [('true', True), ('false', False), ('null', None)]
 
-# bare values (not wrapped in {} or []) are not yet parseable
-T_MALFORMED = [
-    '',             # empty
-    '123',          # bare int 
-    '"ewg"',        # bare string
-    'wegouhweg',    # bare char data
+T_PARSE_MALFORMED = [
+    'wegouhweg',    # naked char data
     '["abcdef]',    # string missing trailing '"'
     '["a","b"',     # list missing trailing ']'
     '{"a:"b"}',     # key missing trailing '"'
@@ -112,43 +110,76 @@ T_MALFORMED = [
     ]
 
 
-def wrap(cases):
-    "wrap bare values in a list to produce valid json data"
-    return [('[%s]' % js, [py]) for js, py in cases]
 
-
-class TestMicrojson(unittest.TestCase):
+class TestMicrojsonParse(unittest.TestCase):
 
     def do_test(self, cases):
         for js, py in cases:
-            r = microjson.parse_json(js)
+            r = microjson.from_json(js)
             self.assertEquals(r, py)
 
     def test_dict(self):
-        self.do_test(T_DICTS)
+        self.do_test(T_PARSE_DICTS)
 
     def test_list(self):
-        self.do_test(T_LISTS)
+        self.do_test(T_PARSE_LISTS)
 
     def test_string(self):
-        self.do_test(wrap(T_STRS))
+        self.do_test(T_PARSE_STRS)
 
     def test_unicode(self):
-        self.do_test(wrap(T_UNICODE))
+        self.do_test(T_PARSE_UNICODE)
 
     def test_integer(self):
-        self.do_test(wrap(T_INTS))
+        self.do_test(T_PARSE_INTS)
     
     def test_floats(self):
-        self.do_test(wrap(T_FLOATS))
+        self.do_test(T_PARSE_FLOATS)
 
     def test_null_and_bool(self):
-        self.do_test(wrap(T_FIXED))
+        self.do_test(T_PARSE_FIXED)
 
     def test_malformed(self):
         "assert a JSONError is raised for these cases"
-        for js in T_MALFORMED:
-            self.assertRaises(microjson.JSONError, microjson.parse_json, js)
+        for js in T_PARSE_MALFORMED:
+            self.assertRaises(microjson.JSONError, microjson.from_json, js)
+
+
+T_EMIT_VALID = [
+    (u"\"\n\t\u2018hi\u2019", '"\\\"\\n\\t\u2018hi\u2019"'),
+    (["foo", "bar"], '["foo","bar"]'),
+    (3.14159, "3.14159"),
+    (10e20, "1e+21"),
+    (-100, "-100"),
+    (0x351, "849"),
+    ({"a":1,"b":[1,2,3]}, '{"a":1,"b":[1,2,3]}'),
+    ((None, True, False), "[null,true,false]"),
+
+    # non-string keys are cast to str
+    ({1: 2}, '{"1":2}'),
+
+    ]
+
+T_EMIT_INVALID = [
+    # unencodable to JSON
+    {"a": lambda x: x},
+    ]
+
+
+class TestMicrojsonEmit(unittest.TestCase):
+
+    def do_test(self, cases):
+        for py, js in cases:
+            r = microjson.to_json(py)
+            self.assertEquals(r, js)
+
+    def test_valid(self):
+        self.do_test(T_EMIT_VALID)
+
+    def test_invalid(self):
+        for py in T_EMIT_INVALID:
+            self.assertRaises(microjson.JSONError, microjson.to_json, py)
+
 
 def main():
     unittest.main()
