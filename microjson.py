@@ -6,6 +6,7 @@
 
 # std
 import codecs
+import math
 import StringIO
 import string
 import types
@@ -32,6 +33,7 @@ E_COLON = 'missing colon after key'
 E_EMPTY = 'found empty string, not valid JSON data'
 E_BADESC = 'bad escape character found'
 E_UNSUPP = 'unsupported type "%s" cannot be JSON-encoded'
+E_BADFLOAT = 'cannot emit floating point value "%s"'
 
 
 class JSONError(Exception):
@@ -334,6 +336,8 @@ def _to_json_object(stm, obj):
     if typ in (types.ListType, types.TupleType):
         _to_json_list(stm, obj)
     elif typ == types.FloatType:
+        if math.isnan(obj) or math.isinf(obj):
+            raise _jsonerr(E_BADFLOAT % obj)
         stm.write("%s" % obj)
     elif typ in (types.IntType, types.LongType):
         stm.write("%d" % obj)

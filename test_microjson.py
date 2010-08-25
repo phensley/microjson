@@ -161,8 +161,10 @@ T_EMIT_VALID = [
     ]
 
 T_EMIT_INVALID = [
-    # unencodable to JSON
     {"a": lambda x: x},
+    float('inf'),
+    float('-inf'),
+    float('nan'),
     ]
 
 
