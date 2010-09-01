@@ -5,10 +5,8 @@
 # Copyright (c) 2010 Patrick Hensley <spaceboy@indirect.com>
 
 # std
-import codecs
 import math
 import StringIO
-import string
 import types
 
 
@@ -18,7 +16,7 @@ DIGITS = set([str(i) for i in range(0, 10)])
 NUMSTART = DIGITS.union(['.','-','+'])
 NUMCHARS = NUMSTART.union(['e','E'])
 ESC_MAP = {'n':'\n','t':'\t','r':'\r','b':'\b','f':'\f'}
-REV_ESC_MAP = dict([(v,k) for k,v in ESC_MAP.items()] + [('"','"')])
+REV_ESC_MAP = dict([(_v,_k) for _k,_v in ESC_MAP.items()] + [('"','"')])
 
 
 # error messages
@@ -125,7 +123,7 @@ def decode_escape(c, stm):
     # decode unicode escape \u1234
     sv = 12
     r = 0
-    for i in range(0, 4):
+    for _ in range(0, 4):
         r |= int(stm.next(), 16) << sv
         sv -= 4
     return unichr(r)
@@ -163,21 +161,21 @@ def _from_json_number(stm):
     # Per rfc 4627 section 2.4 '0' and '0.1' are valid, but '01' and
     # '01.1' are not, presumably since this would be confused with an
     # octal number.  This rule is not enforced.
-    is_float = is_neg = saw_exp = 0
+    is_float = 0
+    is_neg = 0
+    saw_exp = 0
     pos = stm.pos
     while True:
         c = stm.peek()
 
         if c not in NUMCHARS:
             break
-
-        if c == '-' and not saw_exp:
+        elif c == '-' and not saw_exp:
             is_neg = 1
         elif c in ('.','e','E'):
             is_float = 1
             if c in ('e','E'):
                 saw_exp = 1
-
         stm.next() 
 
     s = stm.substr(pos, stm.pos - pos)
