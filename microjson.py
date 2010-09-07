@@ -35,13 +35,10 @@ E_BADFLOAT = 'cannot emit floating point value "%s"'
 
 
 class JSONError(Exception):
-    pass
-
-
-def _jsonerr(msg, stm=None, pos=0):
-    if stm:
-        msg += ' at position %d, "%s"' % (pos, repr(stm.substr(pos, 32)))
-    return JSONError(msg)
+    def __init__(self, msg, stm=None, pos=0):
+        if stm:
+            msg += ' at position %d, "%s"' % (pos, repr(stm.substr(pos, 32)))
+        Exception.__init__(self, msg)
 
 
 class JSONStream(object):
@@ -136,7 +133,7 @@ def _from_json_string(stm):
     while True:
         c = stm.next()
         if c == '':
-            raise _jsonerr(E_TRUNC, stm, stm.pos - 1)
+            raise JSONError(E_TRUNC, stm, stm.pos - 1)
         elif c == '\\':
             c = stm.next()
             r.append(decode_escape(c, stm))
@@ -154,7 +151,7 @@ def _from_json_fixed(stm, expected, value, errmsg):
     if stm.substr(pos, off) == expected:
         stm.next(off)
         return value
-    raise _jsonerr(errmsg, stm, pos)
+    raise JSONError(errmsg, stm, pos)
 
 
 def _from_json_number(stm):
@@ -193,7 +190,7 @@ def _from_json_list(stm):
         stm.skipspaces()
         c = stm.peek()
         if c == '':
-            raise _jsonerr(E_TRUNC, stm, pos)
+            raise JSONError(E_TRUNC, stm, pos)
 
         elif c == ']':
             stm.next()
@@ -220,13 +217,13 @@ def _from_json_dict(stm):
         stm.skipspaces()
         c = stm.peek()
         if c == '':
-            raise _jsonerr(E_TRUNC, stm, pos)
+            raise JSONError(E_TRUNC, stm, pos)
 
         # end of dictionary, or next item
         if c in ('}',','):
             stm.next()
             if expect_key:
-                raise _jsonerr(E_DKEY, stm, stm.pos)
+                raise JSONError(E_DKEY, stm, stm.pos)
             if c == '}':
                 return result
             expect_key = 1
@@ -238,7 +235,7 @@ def _from_json_dict(stm):
             stm.skipspaces()
             c = stm.next()
             if c != ':':
-                raise _jsonerr(E_COLON, stm, stm.pos)
+                raise JSONError(E_COLON, stm, stm.pos)
 
             stm.skipspaces()
             val = _from_json_raw(stm)
@@ -247,7 +244,7 @@ def _from_json_dict(stm):
             continue
 
         # unexpected character in middle of dict
-        raise _jsonerr(E_MALF, stm, stm.pos)
+        raise JSONError(E_MALF, stm, stm.pos)
 
 
 def _from_json_raw(stm):
@@ -269,7 +266,7 @@ def _from_json_raw(stm):
         elif c in NUMSTART:
             return _from_json_number(stm)
 
-        raise _jsonerr(E_MALF, stm, stm.pos)
+        raise JSONError(E_MALF, stm, stm.pos)
 
 
 def from_json(data):
@@ -279,7 +276,7 @@ def from_json(data):
     not unicode.
     """
     if not isinstance(data, str):
-        raise _jsonerr(E_BYTES)
+        raise JSONError(E_BYTES)
     if not data:
         return None
     stm = JSONStream(data)
@@ -335,7 +332,7 @@ def _to_json_object(stm, obj):
         _to_json_list(stm, obj)
     elif typ == types.FloatType:
         if math.isnan(obj) or math.isinf(obj):
-            raise _jsonerr(E_BADFLOAT % obj)
+            raise JSONError(E_BADFLOAT % obj)
         stm.write("%s" % obj)
     elif typ in (types.IntType, types.LongType):
         stm.write("%d" % obj)
@@ -351,7 +348,7 @@ def _to_json_object(stm, obj):
     elif hasattr(obj, 'keys') and hasattr(obj, '__getitem__'):
         _to_json_dict(stm, obj)
     else:
-        raise _jsonerr(E_UNSUPP % typ)
+        raise JSONError(E_UNSUPP % typ)
 
 
 def to_json(obj):
