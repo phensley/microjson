@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 
 # std
 import unittest
@@ -113,31 +111,31 @@ T_PARSE_MALFORMED = [
 
 class TestMicrojsonParse(unittest.TestCase):
 
-    def do_test(self, cases):
+    def _run_cases(self, cases):
         for js, py in cases:
             r = microjson.from_json(js)
             self.assertEquals(r, py)
 
     def test_dict(self):
-        self.do_test(T_PARSE_DICTS)
+        self._run_cases(T_PARSE_DICTS)
 
     def test_list(self):
-        self.do_test(T_PARSE_LISTS)
+        self._run_cases(T_PARSE_LISTS)
 
     def test_string(self):
-        self.do_test(T_PARSE_STRS)
+        self._run_cases(T_PARSE_STRS)
 
     def test_unicode(self):
-        self.do_test(T_PARSE_UNICODE)
+        self._run_cases(T_PARSE_UNICODE)
 
     def test_integer(self):
-        self.do_test(T_PARSE_INTS)
+        self._run_cases(T_PARSE_INTS)
     
     def test_floats(self):
-        self.do_test(T_PARSE_FLOATS)
+        self._run_cases(T_PARSE_FLOATS)
 
     def test_null_and_bool(self):
-        self.do_test(T_PARSE_FIXED)
+        self._run_cases(T_PARSE_FIXED)
 
     def test_malformed(self):
         "assert a JSONError is raised for these cases"
@@ -170,13 +168,13 @@ T_EMIT_INVALID = [
 
 class TestMicrojsonEmit(unittest.TestCase):
 
-    def do_test(self, cases):
+    def _run_cases(self, cases):
         for py, js in cases:
             r = microjson.to_json(py)
             self.assertEquals(r, js)
 
     def test_valid(self):
-        self.do_test(T_EMIT_VALID)
+        self._run_cases(T_EMIT_VALID)
 
     def test_invalid(self):
         for py in T_EMIT_INVALID:
