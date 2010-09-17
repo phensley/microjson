@@ -327,28 +327,27 @@ def _to_json_dict(stm, dct):
 
 
 def _to_json_object(stm, obj):
-    typ = type(obj)
-    if typ in (types.ListType, types.TupleType):
+    if isinstance(obj, (types.ListType, types.TupleType)):
         _to_json_list(stm, obj)
-    elif typ == types.FloatType:
-        if math.isnan(obj) or math.isinf(obj):
-            raise JSONError(E_BADFLOAT % obj)
-        stm.write("%s" % obj)
-    elif typ in (types.IntType, types.LongType):
-        stm.write("%d" % obj)
-    elif typ == types.NoneType:
-        stm.write('null')
-    elif typ == types.BooleanType:
+    elif isinstance(obj, types.BooleanType):
         if obj:
             stm.write('true')
         else:
             stm.write('false')
-    elif typ in (types.StringType, types.UnicodeType):
+    elif isinstance(obj, types.FloatType):
+        if math.isnan(obj) or math.isinf(obj):
+            raise JSONError(E_BADFLOAT % obj)
+        stm.write("%s" % obj)
+    elif isinstance(obj, (types.IntType, types.LongType)):
+        stm.write("%d" % obj)
+    elif isinstance(obj, types.NoneType):
+        stm.write('null')
+    elif isinstance(obj, (types.StringType, types.UnicodeType)):
         _to_json_string(stm, obj)
     elif hasattr(obj, 'keys') and hasattr(obj, '__getitem__'):
         _to_json_dict(stm, obj)
     else:
-        raise JSONError(E_UNSUPP % typ)
+        raise JSONError(E_UNSUPP % type(obj))
 
 
 def to_json(obj):
