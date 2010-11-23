@@ -10,6 +10,9 @@ import StringIO
 import types
 
 
+# the '_from_json_number' function returns either float or long.
+__pychecker__ = 'no-returnvalues'
+
 # character classes
 WS = set([' ','\t','\r','\n','\b','\f'])
 DIGITS = set([str(i) for i in range(0, 10)])
@@ -17,7 +20,6 @@ NUMSTART = DIGITS.union(['.','-','+'])
 NUMCHARS = NUMSTART.union(['e','E'])
 ESC_MAP = {'n':'\n','t':'\t','r':'\r','b':'\b','f':'\f'}
 REV_ESC_MAP = dict([(_v,_k) for _k,_v in ESC_MAP.items()] + [('"','"')])
-
 
 # error messages
 E_BYTES = 'input string must be type str containing ASCII or UTF-8 bytes'
@@ -159,7 +161,6 @@ def _from_json_number(stm):
     # '01.1' are not, presumably since this would be confused with an
     # octal number.  This rule is not enforced.
     is_float = 0
-    is_neg = 0
     saw_exp = 0
     pos = stm.pos
     while True:
@@ -168,7 +169,7 @@ def _from_json_number(stm):
         if c not in NUMCHARS:
             break
         elif c == '-' and not saw_exp:
-            is_neg = 1
+            pass
         elif c in ('.','e','E'):
             is_float = 1
             if c in ('e','E'):
