@@ -142,6 +142,14 @@ class TestMicrojsonParse(unittest.TestCase):
         for js in T_PARSE_MALFORMED:
             self.assertRaises(microjson.JSONError, microjson.from_json, js)
 
+    def test_aliases(self):
+        data = "abc"
+        json = '"abc"'
+        r = microjson.decode(json)
+        self.assertEquals(r, data)
+        r = microjson.encode(data)
+        self.assertEquals(r, json)
+
 
 T_EMIT_VALID = [
     (u"\"\n\t\u2018hi\u2019", '"\\\"\\n\\t\u2018hi\u2019"'),
@@ -159,7 +167,6 @@ T_EMIT_VALID = [
     ]
 
 T_EMIT_INVALID = [
-    {"a": lambda x: x},
     float('inf'),
     float('-inf'),
     float('nan'),

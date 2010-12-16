@@ -347,6 +347,9 @@ def _to_json_object(stm, obj):
         _to_json_string(stm, obj)
     elif hasattr(obj, 'keys') and hasattr(obj, '__getitem__'):
         _to_json_dict(stm, obj)
+    # fall back to implicit string conversion.
+    elif hasattr(obj, '__str__'):
+        _to_json_string(stm, str(obj))
     else:
         raise JSONError(E_UNSUPP % type(obj))
 
@@ -359,4 +362,7 @@ def to_json(obj):
     _to_json_object(stm, obj)
     return stm.getvalue()
 
+
+decode = from_json
+encode = to_json
 
