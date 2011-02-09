@@ -348,8 +348,10 @@ def _to_json_object(stm, obj):
     elif hasattr(obj, 'keys') and hasattr(obj, '__getitem__'):
         _to_json_dict(stm, obj)
     # fall back to implicit string conversion.
+    elif hasattr(obj, '__unicode__'):
+        _to_json_string(stm, obj.__unicode__())
     elif hasattr(obj, '__str__'):
-        _to_json_string(stm, str(obj))
+        _to_json_string(stm, obj.__str__())
     else:
         raise JSONError(E_UNSUPP % type(obj))
 

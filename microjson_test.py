@@ -1,5 +1,6 @@
 
 # std
+import sys
 import unittest
 
 # vendor
@@ -32,15 +33,19 @@ T_PARSE_STRS = [
     ('"\u0124\u0113\u013a\u013e\u014d"', u"\u0124\u0113\u013a\u013e\u014d"),
     ('"\u201chello\u201d"', u"\u201chello\u201d"),
 
-    # pure utf-8 unicode > 16-bits. not asci-encodable in json.
-    ('"\xf0\x90\x82\x82"', U"\U00010082"),
-
     # bare utf-8 
     ('"\xc6\x91"', u"\u0191"),
     ('"\xc4\x91"', u"\u0111"),
 
     # mixed utf-8 and escaped unicode
     ('"a\xc6\x91b\u0191c\u2018"', u"a\u0191b\u0191c\u2018"),
+    ]
+
+# utf-8 encoded ucs-4 test case
+if sys.maxunicode == 1114111:
+    T_PARSE_STRS += [
+        # pure utf-8 char > 16-bits. not asci-encodable in json.
+        ('"\xf0\x90\x82\x82"', U"\U00010082")
     ]
 
 # test range of 16-bit characters > 0x7F
@@ -186,6 +191,26 @@ class TestMicrojsonEmit(unittest.TestCase):
     def test_invalid(self):
         for py in T_EMIT_INVALID:
             self.assertRaises(microjson.JSONError, microjson.to_json, py)
+
+    def test_string_object(self):
+        class Bag:
+            pass
+        cases = [
+            ("hello", '"hello"'),
+            (u"\u2018hi\u2019", r'"\u2018hi\u2019"')
+            ]
+        for py, js in cases:
+            for meth in ('__str__', '__unicode__'):
+                obj = Bag()
+                setattr(obj, meth, lambda: py)
+                r = microjson.to_json(obj)
+                self.assertEquals(r, js)
+
+    def test_unsupported_object(self):
+        class Bag:
+            pass
+        obj = Bag()
+        self.assertRaises(microjson.JSONError, microjson.to_json, obj)
 
 
 def main():
