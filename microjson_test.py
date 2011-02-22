@@ -104,6 +104,8 @@ T_PARSE_MALFORMED = [
     "[123",         # truncated list
     "[1, , ,]",     # list with empty slots
     "[1, , ",       # truncated list with empty slots
+    "[#",           # list with illegal chars
+    "[1, 2\n#",     # list with illegal chars
     '{"abc"}',      # incomplete dict
     '{"abc"',       # truncated dict
     '{"abc":',      # truncated dict with missing value
@@ -205,6 +207,9 @@ class TestMicrojsonEmit(unittest.TestCase):
                 setattr(obj, meth, lambda: py)
                 r = microjson.to_json(obj)
                 self.assertEquals(r, js)
+        class NObj:
+            pass
+        self.assertRaises(microjson.JSONError, microjson.encode, NObj())
 
     def test_unsupported_object(self):
         class Bag:

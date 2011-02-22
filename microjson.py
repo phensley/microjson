@@ -184,7 +184,7 @@ def _from_json_number(stm):
 
 def _from_json_list(stm):
     # skip over '['
-    stm.next()  
+    stm.next()
     result = []
     pos = stm.pos
     while True:
@@ -203,10 +203,13 @@ def _from_json_list(stm):
             continue
 
         elif not result:
-            # first list item
+            # first item
             result.append(_from_json_raw(stm))
             continue
-        
+
+        else:
+            raise JSONError(E_MALF, stm, stm.pos)
+
 
 def _from_json_dict(stm):
     # skip over '{'
