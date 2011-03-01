@@ -310,7 +310,7 @@ def _to_json_string(stm, buf):
             # force ascii
             stm.write(str(c))
         else:
-            stm.write('\\u%4x' % ord(c))
+            stm.write('\\u%04x' % ord(c))
     stm.write('"')
 
 

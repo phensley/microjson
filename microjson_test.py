@@ -160,6 +160,7 @@ class TestMicrojsonParse(unittest.TestCase):
 
 T_EMIT_VALID = [
     (u"\"\n\t\u2018hi\u2019", '"\\\"\\n\\t\u2018hi\u2019"'),
+    (u"se\u00f1or", '"se\u00f1or"'),
     (["foo", "bar"], '["foo","bar"]'),
     (3.14159, "3.14159"),
     (10e20, "1e+21"),
