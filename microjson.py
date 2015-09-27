@@ -35,6 +35,9 @@ E_BADESC = 'bad escape character found'
 E_UNSUPP = 'unsupported type "%s" cannot be JSON-encoded'
 E_BADFLOAT = 'cannot emit floating point value "%s"'
 
+NEG_INF = float('-inf')
+POS_INF = float('inf')
+
 
 class JSONError(Exception):
     def __init__(self, msg, stm=None, pos=0):
@@ -339,7 +342,8 @@ def _to_json_object(stm, obj):
         else:
             stm.write('false')
     elif isinstance(obj, types.FloatType):
-        if math.isnan(obj) or math.isinf(obj):
+        # this raises an error for NaN, -inf and inf values
+        if not (NEG_INF < obj < POS_INF):
             raise JSONError(E_BADFLOAT % obj)
         stm.write("%s" % obj)
     elif isinstance(obj, (types.IntType, types.LongType)):
