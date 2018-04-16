@@ -112,6 +112,7 @@ T_PARSE_MALFORMED = [
     '{',            # truncated dict
     '{,}',          # dict with empty slots
     u'[]',          # input must be a str
+    '{"a":1"b":2}'  # missing comma
     ]
 
 

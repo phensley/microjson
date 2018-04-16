@@ -29,6 +29,7 @@ E_BOOL = 'expected boolean'
 E_NULL = 'expected null'
 E_LITEM = 'expected list item'
 E_DKEY = 'expected key'
+E_COMMA = 'missing comma between elements'
 E_COLON = 'missing colon after key'
 E_EMPTY = 'found empty string, not valid JSON data'
 E_BADESC = 'bad escape character found'
@@ -218,7 +219,7 @@ def _from_json_dict(stm):
     # skip over '{'
     stm.next()
     result = {}
-    expect_key = 0
+    expect_key = 1
     pos = stm.pos
     while True:
         stm.skipspaces()
@@ -227,17 +228,21 @@ def _from_json_dict(stm):
             raise JSONError(E_TRUNC, stm, pos)
 
         # end of dictionary, or next item
-        if c in ('}',','):
+        elif c == '}':
+            if expect_key == 2:
+                raise JSONError(E_TRUNC, stm, pos)
             stm.next()
-            if expect_key:
-                raise JSONError(E_DKEY, stm, stm.pos)
-            if c == '}':
-                return result
-            expect_key = 1
+            return result
+
+        elif c == ',':
+            stm.next()
+            expect_key = 2
             continue
 
         # parse out a key/value pair
         elif c == '"':
+            if not expect_key:
+                raise JSONError(E_COMMA, stm, stm.pos)
             key = _from_json_string(stm)
             stm.skipspaces()
             c = stm.next()
